@@ -28,7 +28,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import roc_auc_score, roc_curve, auc, classification_report, confusion_matrix
+from sklearn.metrics import roc_auc_score, roc_curve, auc, classification_report, confusion_matrix, f1_score, precision_recall_fscore_support
 from sklearn.externals.six import StringIO
 from IPython.display import Image
 from sklearn.tree import export_graphviz
@@ -225,3 +225,44 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label', fontsize=10)
     plt.xlabel('Predicted label', fontsize=10)
+    
+    
+
+def run_GridSearchCV(X_train, X_test, y_train, y_test, model, param_grid, scoring, cv = 10):
+    opt_model = GridSearchCV(model, param_grid = param_grid, scoring = scoring, cv = cv, n_jobs = -1, return_train_score = True)
+    print("running gridsearch...")
+    opt_model.fit(X_train, y_train)
+    best_model = opt_model.best_estimator_
+    print("done!")
+    print("Best Parameters:", opt_model.best_params_)
+    probas = best_model.predict_proba(X_test)
+    y_test_pred = best_model.predict(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, probas[:,1])
+    print("Classification Report: \n", classification_report(y_test, y_test_pred))
+    plot_auc(fpr, tpr)
+    plot_confusion_matrix(confusion_matrix(y_test, y_test_pred), classes=[0, 1])
+    cv_results = pd.DataFrame(opt_model.cv_results_)
+    columns = ["rank_test_score", "params", "mean_train_score","std_train_score", "mean_test_score", "std_test_score"]
+    cv_results_top10 = cv_results[columns].sort_values("rank_test_score").head(10)
+    
+    return cv_results_top10, best_model
+
+
+def split_resample(X, y):
+    """ 
+    This function takes in dataframes X, y the preprocess the data: split then resample
+    
+    """
+    
+    #train-test split 
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
+    print("split done")
+    
+    #resample the train sets
+    smote = SMOTE(sampling_strategy = "not majority", random_state = 42)
+    X_train_rs, y_train_rs = smote.fit_sample(X_train, y_train)
+    print('original class distribution:')
+    print(y["default_payment_next_month"].value_counts())
+    print('synthetic sample class distribution:')
+    print(pd.Series(y_train_rs).value_counts())  
+    return X, X_train_rs, X_test, y_train_rs, y_test
