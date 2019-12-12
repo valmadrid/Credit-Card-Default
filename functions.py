@@ -28,7 +28,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import roc_auc_score, roc_curve, auc, classification_report, confusion_matrix, f1_score, precision_recall_fscore_support
+from sklearn.metrics import roc_auc_score, roc_curve, auc, classification_report, confusion_matrix
+from sklearn.metrics import f1_score, precision_recall_fscore_support, precision_recall_curve
 from sklearn.externals.six import StringIO
 from IPython.display import Image
 from sklearn.tree import export_graphviz
@@ -161,34 +162,75 @@ def feature_selection_Logistic(df, cat_columns, cf_columns):
 def run_logistic(X_train, X_test, y_train, y_test):
     logreg = LogisticRegression(fit_intercept=True, C=1e20, penalty ='l2', solver = 'lbfgs')
     logreg.fit(X_train, y_train)
-    
-    y_test_pred = logreg.predict(X_test)
-    probas = logreg.predict_proba(X_test)
-    fpr, tpr, thresholds = roc_curve(y_test, probas[:,1])
-    print("Classification Report: \n", classification_report(y_test, y_test_pred))
-    plot_auc(fpr, tpr)
-    plot_confusion_matrix(confusion_matrix(y_test, y_test_pred), classes=[0, 1])
-    
+    get_scores(logreg, X_train, X_test, y_train, y_test)
+
+
+def run_svc(X_train, X_test, y_train, y_test):
+    svc = SVC(max_iter=100000,probability=True)
+    svc.fit(X_train, y_train)
+    get_scores(svc, X_train, X_test, y_train, y_test)
 
     
-def plot_auc(fpr, tpr):
+
+def get_scores(estimator, X_train, X_test, y_train, y_test): 
+    y_test_pred = estimator.predict(X_test)
+    probas = estimator.predict_proba(X_test)
+    precision, recall, thresholds = precision_recall_curve(y_test, probas[:,1])
+#     print("Precision: ", precision)
+#     print("Recall: ", recall)
+#     print("Precision-Recall Curve", precision_recall_curve(y_test, probas[:,1]))
+    print("---------------------------------------------------------------------")
+    print("F1 score: ", f1_score(y_test, y_test_pred))
+    plot_auc(recall, precision, thresholds)
+    print("---------------------------------------------------------------------")
+    print("Classification Report: \n", classification_report(y_test, y_test_pred))
+    print("---------------------------------------------------------------------")
+    plot_confusion_matrix(confusion_matrix(y_test, y_test_pred), classes=[0, 1])
+    
+    
+def plot_auc(recall, precision, thresholds):
     sns.set_style("darkgrid")
     sns.set_context("paper")
-    print('AUC: {}'.format(auc(fpr, tpr)))
+    print('Precision-Recall AUC: {}'.format(auc(recall, precision)))
     plt.figure(figsize=(8, 6))
     lw = 2
-    plt.plot(fpr, tpr, color='darkorange',
-             lw=lw, label='ROC curve')
-    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-    plt.xlim([0.00001, 1.0])
-    plt.ylim([0.00001, 1.0])
+    plt.plot(recall, precision, color='darkorange',
+             lw=lw, label='Precision-Recall Curve')
+    plt.plot([0, 1], [1, 0], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.00001, 1.00001])
+    plt.ylim([0.00001, 1.00001])
     plt.yticks([i/20.0 for i in range(21)])
     plt.xticks([i/20.0 for i in range(21)])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic (ROC) Curve', fontsize = 15)
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title('Precision-Recall Curve', fontsize = 15)
     plt.legend(loc='lower right')
     plt.show()
+    print("---------------------------------------------------------------------")
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(thresholds, precision[:-1], "b--", label="Precision", lw =2)
+    plt.plot(thresholds, recall[:-1], "g-", label="Recall", lw =2)
+    plt.xlabel("Threshold")
+    plt.legend(loc="upper left")
+    plt.ylim([0, 1])
+    plt.title('Precision-Recall vs Decision Threshold', fontsize = 15)
+    plt.show()
+    
+#     plt.figure(figsize=(8, 6))
+#     lw = 2
+#     plt.plot(recall, precision, color='darkorange',
+#              lw=lw, label='Precision-Recall Curve')
+#     plt.plot([0, 1], [1, 0], color='navy', lw=lw, linestyle='--')
+#     plt.xlim([0.00001, 1.00001])
+#     plt.ylim([0.00001, 1.00001])
+#     plt.yticks([i/20.0 for i in range(21)])
+#     plt.xticks([i/20.0 for i in range(21)])
+#     plt.xlabel('Recall')
+#     plt.ylabel('Precision')
+#     plt.title('Precision-Recall Curve', fontsize = 15)
+#     plt.legend(loc='lower right')
+#     plt.show()
     
 
     
@@ -234,13 +276,12 @@ def run_GridSearchCV(X_train, X_test, y_train, y_test, model, param_grid, scorin
     opt_model.fit(X_train, y_train)
     best_model = opt_model.best_estimator_
     print("done!")
+    print("---------------------------------------------------------------------")
     print("Best Parameters:", opt_model.best_params_)
-    probas = best_model.predict_proba(X_test)
-    y_test_pred = best_model.predict(X_test)
-    fpr, tpr, thresholds = roc_curve(y_test, probas[:,1])
-    print("Classification Report: \n", classification_report(y_test, y_test_pred))
-    plot_auc(fpr, tpr)
-    plot_confusion_matrix(confusion_matrix(y_test, y_test_pred), classes=[0, 1])
+    
+    
+    get_scores(best_model, X_train, X_test, y_train, y_test)
+
     cv_results = pd.DataFrame(opt_model.cv_results_)
     columns = ["rank_test_score", "params", "mean_train_score","std_train_score", "mean_test_score", "std_test_score"]
     cv_results_top10 = cv_results[columns].sort_values("rank_test_score").head(10)
