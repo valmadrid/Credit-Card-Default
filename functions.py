@@ -56,7 +56,7 @@ def plot_cf_target(df, columns, hue = "default_payment_next_month"):
     
     loc = 1
     numplots = ((len(columns)*(len(columns)-1))/2)+len(columns)
-    fig = plt.figure(figsize = (40,((numplots/4)+1)*8))
+    fig = plt.figure(figsize = (40,60))
     for i, ycol in enumerate(columns):
         for j, xcol in enumerate(columns):
             if j < i:
@@ -79,19 +79,12 @@ def plot_cat(df, cat_columns, hue = "default_payment_next_month"):
     loc = 1
     for col in cat_columns:
         ax = fig.add_subplot(len(cat_columns)/2+1, 2, loc)
-        if (col == "score_3mo") | (col == "score_6mo"):
-            df_plot = df[[col, hue, "id"]].groupby([col, hue]).count()
-            df_plot.reset_index(inplace = True)
-            sns.lineplot(x=col, y="id",hue=hue, data=df_plot, palette = "GnBu_d", ax = ax);
-            plt.ylim([0.0001,1200])
-            plt.ylabel("clients");
-        else:
-            df_plot = df[[col, hue, "id"]].groupby([col, hue]).count()
-            df_plot.reset_index(inplace = True)
-            sns.barplot(x=col, y= "id", hue = hue, data=df_plot, palette = "GnBu_d", ax = ax);
-            plt.legend(title = "default payment (1=yes, 0=no)")
-            plt.ylim([0.0001,3000])
-            plt.ylabel("clients");
+        df_plot = df[[col, hue, "id"]].groupby([col, hue]).count()
+        df_plot.reset_index(inplace = True)
+        sns.barplot(x=col, y= "id", hue = hue, data=df_plot, palette = "GnBu_d", ax = ax);
+        plt.legend(title = "default payment (1=yes, 0=no)")
+        plt.ylim([0.0001,15000])
+        plt.ylabel("clients");
         loc += 1
         
         
@@ -159,8 +152,8 @@ def feature_selection_Logistic(df, cat_columns, cf_columns):
     return selected, X_train_selected, X_test_selected, y_train_rs, y_test
 
 
-def run_logistic(X_train, X_test, y_train, y_test):
-    logreg = LogisticRegression(fit_intercept=True, C=1e20, penalty ='l2', solver = 'lbfgs')
+def run_logistic(X_train, X_test, y_train, y_test, C=1e20, penalty = 'l2', solver = 'lbfgs'):
+    logreg = LogisticRegression(fit_intercept=True, C=C, penalty = penalty, solver = solver)
     logreg.fit(X_train, y_train)
     get_scores(logreg, X_train, X_test, y_train, y_test)
 
@@ -196,7 +189,7 @@ def plot_auc(recall, precision, thresholds):
     lw = 2
     plt.plot(recall, precision, color='darkorange',
              lw=lw, label='Precision-Recall Curve')
-    plt.plot([0, 1], [1, 0], color='navy', lw=lw, linestyle='--')
+    #plt.plot([0, 0], [0, 1], color='navy', lw=lw, linestyle='--')
     plt.xlim([0.00001, 1.00001])
     plt.ylim([0.00001, 1.00001])
     plt.yticks([i/20.0 for i in range(21)])
@@ -235,7 +228,7 @@ def plot_auc(recall, precision, thresholds):
 
     
 def plot_confusion_matrix(cm, classes,
-                          normalize=False,
+                          normalize=True,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues):
     
@@ -247,7 +240,8 @@ def plot_confusion_matrix(cm, classes,
         print('Normalized confusion matrix')
     else:
         print('Confusion matrix, without normalization')
-
+    plt.figure(figsize=(8, 6))
+    
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title, fontsize=15)
     plt.colorbar()
@@ -260,9 +254,8 @@ def plot_confusion_matrix(cm, classes,
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, format(cm[i, j], fmt),
                  horizontalalignment='center',
-                 verticalalignment='top',
-                 color='white' if cm[i, j] > thresh else 'black',
-                 fontsize=15)
+                 color='black',
+                 fontsize=20)
 
     plt.tight_layout()
     plt.ylabel('True label', fontsize=10)
