@@ -141,7 +141,7 @@ def feature_selection_Logistic(df, cat_columns, cf_columns):
     X_train_scaled, X_test_scaled = scale_X(X_train_rs, X_test)
     
     #run SelectFromModel for feature selection
-    selector = SelectFromModel(LogisticRegression(fit_intercept=True, C=1e20, penalty ='l2', solver = 'lbfgs'))
+    selector = SelectFromModel(LogisticRegression(fit_intercept=True))
     selector.fit(X_train_scaled, y_train_rs)
     selected_feat = list(X.columns[(selector.get_support())])
     selected = dict(zip((list(X.columns)), list(selector.get_support())))
@@ -152,7 +152,13 @@ def feature_selection_Logistic(df, cat_columns, cf_columns):
     return selected, X_train_selected, X_test_selected, y_train_rs, y_test
 
 
-def run_logistic(X_train, X_test, y_train, y_test, C=1e20, penalty = 'l2', solver = 'lbfgs'):
+def run_logistic(X_train, X_test, y_train, y_test, C=1, penalty = 'l2', solver = 'lbfgs'):
+    """ 
+    This function takes in X_train, X_test, y_train, y_test and parameters for Logistic Regression
+    Then returns scores, precision-recall auc plot, confusion matrix
+    
+    """
+    
     logreg = LogisticRegression(fit_intercept=True, C=C, penalty = penalty, solver = solver)
     logreg.fit(X_train, y_train)
     get_scores(logreg, X_train, X_test, y_train, y_test)
@@ -173,7 +179,7 @@ def get_scores(estimator, X_train, X_test, y_train, y_test):
 #     print("Recall: ", recall)
 #     print("Precision-Recall Curve", precision_recall_curve(y_test, probas[:,1]))
     print("---------------------------------------------------------------------")
-    print("F1 score: ", f1_score(y_test, y_test_pred))
+    print("F1 score: ", f1_score(y_test, y_test_pred)) #f1_score(y_true, y_pred, labels=None, pos_label=1, average='binary', sample_weight=None, zero_division='warn')
     plot_auc(recall, precision, thresholds)
     print("---------------------------------------------------------------------")
     print("Classification Report: \n", classification_report(y_test, y_test_pred))
@@ -185,7 +191,7 @@ def plot_auc(recall, precision, thresholds):
     sns.set_style("darkgrid")
     sns.set_context("paper")
     print('Precision-Recall AUC: {}'.format(auc(recall, precision)))
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(8, 5))
     lw = 2
     plt.plot(recall, precision, color='darkorange',
              lw=lw, label='Precision-Recall Curve')
@@ -240,10 +246,10 @@ def plot_confusion_matrix(cm, classes,
         print('Normalized confusion matrix')
     else:
         print('Confusion matrix, without normalization')
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(5, 5))
     
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title, fontsize=15)
+    plt.title(title, fontsize=10)
     plt.colorbar()
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45, fontsize=10)
