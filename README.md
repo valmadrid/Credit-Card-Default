@@ -1,4 +1,4 @@
-# Credit Card Default :  Executive Summary
+# Credit Card Default:  Executive Summary
 
 ## Overview
 
